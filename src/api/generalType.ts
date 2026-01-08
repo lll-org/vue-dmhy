@@ -1,5 +1,5 @@
 export interface GeneralResponse<T> {
   code: number
-  data: T[]
+  data: T
   message: string
 }

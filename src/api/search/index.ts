@@ -5,23 +5,30 @@ import type { AxiosResponse } from 'axios'
 import type { AnimeInfo, SearchForm } from './type'
 
 enum API {
-  HELLO_WORLD_URL = 'anime/hello',
-  SEARCH_URL = 'anime/deep_search',
-  QUICK_SEARCH_URL = 'anime/quick_search',
-  DOWNLOAD_URL = 'anime/download',
-  BACKGROUND_DOWNLOAD_URL = 'anime/download_torrent',
+  TEST_URL = 'lll/user/userInfo',
+  SEARCH_URL = 'dmhy/anime/deep_search',
+  QUICK_SEARCH_URL = 'dmhy/anime/quick_search',
+  DOWNLOAD_URL = 'dmhy/anime/download',
+  BACKGROUND_DOWNLOAD_URL = 'dmhy/anime/download_torrent',
+  SEARCH_REDIS_URL = 'dmhy/anime/search_redis',
 }
 
-export function helloWorld() {
-  return request.post<null, GeneralResponse<string>>(API.HELLO_WORLD_URL)
+export function test() {
+  return request.get<null, GeneralResponse<string>>(API.TEST_URL)
 }
 
 export function quickSearch(searchForm: SearchForm) {
-  return request.post<SearchForm, GeneralResponse<AnimeInfo>>(API.QUICK_SEARCH_URL, searchForm)
+  return request.post<SearchForm, GeneralResponse<AnimeInfo[]>>(API.QUICK_SEARCH_URL, searchForm)
 }
 
-export function search(searchForm: SearchForm) {
-  return request.post<SearchForm, GeneralResponse<AnimeInfo>>(API.SEARCH_URL, searchForm)
+export function deep_search(searchForm: SearchForm) {
+  return request.post<SearchForm, GeneralResponse<string>>(API.SEARCH_URL, searchForm)
+}
+
+export function search_redis(task_id: string) {
+  return request.get<string, GeneralResponse<AnimeInfo[]>>(API.SEARCH_REDIS_URL, {
+    params: { task_id },
+  })
 }
 
 export function download(downloadList: AnimeInfo[]) {

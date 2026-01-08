@@ -5,23 +5,13 @@
       <el-header height="30px">
         <HeaderComponent />
       </el-header>
-
-      <el-container>
-        <!-- 侧边栏 -->
-        <el-aside width="200px" class="nav-aside">Aside</el-aside>
-        <el-container>
-          <!-- 主内容 -->
-          <el-main class="nav-main">Main</el-main>
-          <!-- 底部 -->
-          <el-footer class="nav-footer">Footer</el-footer>
-        </el-container>
-      </el-container>
+      <router-view />
     </el-container>
   </div>
 </template>
 
 <script setup lang="ts">
-import HeaderComponent from '@/component/home/HeaderComponent.vue'
+import HeaderComponent from '@/component/header/HeaderComponent.vue'
 </script>
 
 <style scoped lang="scss">

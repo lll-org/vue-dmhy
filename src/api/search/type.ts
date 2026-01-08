@@ -13,8 +13,10 @@ export interface AnimeInfo {
   subtitle_group_name: string
   title: string
   magnet_url: string
-  paipak_url: string
+  pikpak_url: string
   size: string
   detail_url: string
   torrent_url: string
 }
+
+

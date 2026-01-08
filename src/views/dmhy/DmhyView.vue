@@ -1,6 +1,7 @@
 <template>
   <!-- 搜索模块 -->
   <div class="main-container">
+    <el-button type="primary" size="default" @click="testHandle">{{ testContent }}</el-button>
     <el-form :model="searchForm">
       <el-form-item>
         <div class="search-container">
@@ -15,11 +16,16 @@
             type="primary"
             size="default"
             @click="quickSearchHandle"
-            :disabled="isSearching"
+            :disabled="searchStatus.isQuickSearching"
           >
             快速搜索
           </el-button>
-          <el-button type="primary" size="default" @click="searchHandle" :disabled="isSearching">
+          <el-button
+            type="primary"
+            size="default"
+            @click="searchHandle"
+            :disabled="searchStatus.isDeepSearching"
+          >
             搜索
           </el-button>
         </div>
@@ -129,7 +135,11 @@
           </div>
           <div class="category-box">
             在下列聯盟中搜索：
-            <el-select class="select-box" v-model="searchForm.subtitle_group_id">
+            <el-select
+              class="select-box"
+              v-model="searchForm.subtitle_group_id"
+              style="width: 140px"
+            >
               <el-option value="0" label="全部"></el-option>
               <el-option value="117" label="動漫花園"></el-option>
               <el-option value="823" label="拨雪寻春"></el-option>
@@ -215,7 +225,7 @@
           </div>
           <div class="category-box">
             按下列順序排列：
-            <el-select class="select-box" v-model="searchForm.sort_value">
+            <el-select class="select-box" v-model="searchForm.sort_value" style="width: 160px">
               <el-option value="date-desc" label="發佈時間從後往前"></el-option>
               <el-option value="date-asc" label="發佈時間從前往後"></el-option>
               <el-option value="rel" label="相關度"></el-option>
@@ -227,8 +237,8 @@
   </div>
 
   <!-- 展示模块 -->
-  <div class="show-container">
-    <div v-show="!isSearching">
+  <div class="show-container" v-show="animeInfoList.length > 0">
+    <div v-show="!searchStatus.isQuickSearching && !searchStatus.isDeepSearching">
       <el-button
         type="primary"
         size="default"
@@ -247,6 +257,8 @@
           downloadStatus.isBackgroundDownloading ? '后台努力下载中...' : '后台下载所有选中项'
         }}</el-button
       >
+      <el-button type="primary" size="default" @click="quickSearchHandle">刷新种子列表</el-button>
+
       <el-table
         :data="animeInfoList"
         stripe
@@ -256,6 +268,11 @@
         @selection-change="selectionChangeHandle"
       >
         <el-table-column type="selection" width="50"></el-table-column>
+        <el-table-column label="更新日期" align="center" :width="100">
+          <template #default="scope">
+            {{ scope.row.update_date }}
+          </template>
+        </el-table-column>
         <el-table-column label="字幕组" align="center" :width="100">
           <template #default="scope">
             {{ scope.row.subtitle_group_name }}
@@ -271,21 +288,24 @@
             <el-button
               type="primary"
               size="small"
-              :href="scope.row.paipak_url"
+              :href="scope.row.pikpak_url"
               target="_blank"
               tag="a"
             >
               PikPak
             </el-button>
             <el-button
-              :disabled="true"
+              :disabled="scope.row.magnet_url === null"
               type="primary"
               size="small"
-              :href="scope.row.magnet_url"
-              target="_blank"
+              @click="copyMagnetHandle(scope.row.magnet_url)"
               >磁力链接</el-button
             >
-            <el-button type="primary" size="small" :href="scope.row.torrent_url" target="_blank"
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="scope.row.torrent_url === null"
+              @click="downloadTorrentHandle(scope.row.torrent_url, scope.row.title + '.torrent')"
               >种子下载</el-button
             >
           </template>
@@ -297,14 +317,24 @@
         </el-table-column>
       </el-table>
     </div>
-    <div v-show="isSearching" class="search-loading">
-      <el-icon class="is-loading" :size="100"><Loading /></el-icon>
-    </div>
+  </div>
+  <!-- 加载模块 -->
+  <div
+    v-show="searchStatus.isQuickSearching || searchStatus.isDeepSearching"
+    class="search-loading"
+  >
+    <el-icon class="is-loading" :size="100"><Loading /></el-icon>
   </div>
 </template>
 
 <script setup lang="ts">
-import { backgroundDownload, quickSearch, search } from '@/api/search/index'
+import {
+  backgroundDownload,
+  deep_search,
+  quickSearch,
+  search_redis,
+  test,
+} from '@/api/search/index'
 import type { AnimeInfo, SearchForm } from '@/api/search/type'
 import { ElMessage } from 'element-plus'
 import { ref } from 'vue'
@@ -322,37 +352,47 @@ const searchStatus = ref({
 })
 // 搜索表单，用于收集搜索内容
 const searchForm = ref<SearchForm>({
-  title: '今天看点什么',
+  title: '',
   type_id: '0',
   subtitle_group_id: '0',
-  sort_value: '0',
+  sort_value: 'date-desc',
 })
 
 // 一个动漫信息，用于测试
-const oneAnimeInfo = ref<AnimeInfo>({
-  id: 1,
-  type_id: '2',
-  type_name: '动画',
-  subtitle_group_id: '117',
-  subtitle_group_name: 'LoliHouse',
-  title:
-    '魔法少女小圆 起始的物语 / 永远的物语 TV 剪辑版 / Puella Magi Madoka - 03 [WebRip 1080p HEVC-10bit AAC][日语内封字幕]',
-  paipak_url:
-    'https://keepshare.org/i9l0fcvt/magnet%3A%3Fxt%3Durn%3Abtih%3A446203526301144dcf64a89d73af7cfc7c55d4e6',
-  magnet_url:
-    '6969%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.files.fm%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.edkj.club%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.bt4g.com%3A2095%2Fannounce&tr=http%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=http%3A%2F%2Fch3oh.ru%3A6969%2Fannounce&tr=http%3A%2F%2Fbvarf.tracker.sh%3A2086%2Fannounce&tr=https%3A%2F%2Fyolo.liberbear.com%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.gcrreen.xyz%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.gbitt.info%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.cloudit.top%3A443%2Fannounce&tr=http%3A%2F%2Ftracker.gbitt.info%3A80%2Fannounce&tr=http%3A%2F%2Fbittorrent-tracker.e-n-c-r-y-p-t.net%3A1337%2Fannounce&tr=http%3A%2F%2F1337.abcvg.info%3A80%2Fannounce',
-  size: '4.0GB',
-  detail_url:
-    'https://share.dmhy.org/topics/view/685671_GM-Team_Swallowed_Star_Movie_2024_HEVC_GB_4K.html',
-  torrent_url: 'https://dl.dmhy.org/2024/12/23/446203526301144dcf64a89d73af7cfc7c55d4e6.torrent',
-})
+// const oneAnimeInfo = ref<AnimeInfo>({
+//   id: 1,
+//   type_id: '2',
+//   type_name: '动画',
+//   subtitle_group_id: '117',
+//   subtitle_group_name: 'LoliHouse',
+//   title:
+//     '魔法少女小圆 起始的物语 / 永远的物语 TV 剪辑版 / Puella Magi Madoka - 03 [WebRip 1080p HEVC-10bit AAC][日语内封字幕]',
+//   pikpak_url:
+//     'https://keepshare.org/i9l0fcvt/magnet%3A%3Fxt%3Durn%3Abtih%3A446203526301144dcf64a89d73af7cfc7c55d4e6',
+//   magnet_url:
+//     '6969%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.files.fm%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.edkj.club%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.bt4g.com%3A2095%2Fannounce&tr=http%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=http%3A%2F%2Fch3oh.ru%3A6969%2Fannounce&tr=http%3A%2F%2Fbvarf.tracker.sh%3A2086%2Fannounce&tr=https%3A%2F%2Fyolo.liberbear.com%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.gcrreen.xyz%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.gbitt.info%3A443%2Fannounce&tr=https%3A%2F%2Ftracker.cloudit.top%3A443%2Fannounce&tr=http%3A%2F%2Ftracker.gbitt.info%3A80%2Fannounce&tr=http%3A%2F%2Fbittorrent-tracker.e-n-c-r-y-p-t.net%3A1337%2Fannounce&tr=http%3A%2F%2F1337.abcvg.info%3A80%2Fannounce',
+//   size: '4.0GB',
+//   detail_url:
+//     'https://share.dmhy.org/topics/view/685671_GM-Team_Swallowed_Star_Movie_2024_HEVC_GB_4K.html',
+//   torrent_url: 'https://dl.dmhy.org/2024/12/23/446203526301144dcf64a89d73af7cfc7c55d4e6.torrent',
+// })
 const animeInfoList = ref<AnimeInfo[]>([])
 const multipleSelection = ref<AnimeInfo[]>([])
 
-for (let i = 0; i < 10; i++) {
-  const newAnimeInfo = { ...oneAnimeInfo.value }
-  newAnimeInfo.id = i + 1
-  animeInfoList.value.push(newAnimeInfo)
+// for (let i = 0; i < 10; i++) {
+//   const newAnimeInfo = { ...oneAnimeInfo.value }
+//   newAnimeInfo.id = i + 1
+//   animeInfoList.value.push(newAnimeInfo)
+// }
+const testContent = ref('test')
+const testHandle = async () => {
+  // window.location.href = '/oauth2/authorization/oidc-client'
+  const result = await test()
+  if (result.code === 200) {
+    testContent.value = result.data
+  } else {
+    ElMessage.error('测试失败')
+  }
 }
 
 // 快速搜索，后端有返回值
@@ -366,15 +406,58 @@ async function quickSearchHandle() {
   } else {
     ElMessage.error('搜索失败')
   }
+  // await sleep(1000)
   searchStatus.value.isQuickSearching = false
 }
 
-// todo: 深度搜索，后端无返回值
+// 复制磁力链接
+function copyMagnetHandle(magnetUrl: string) {
+  try {
+    navigator.clipboard.writeText(magnetUrl)
+    ElMessage.success('复制成功')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('复制失败')
+  }
+}
+
+function downloadTorrentHandle(torrentUrl: string, fileName: string) {
+  triggerDownload(torrentUrl, fileName)
+}
+
+// 深度搜索 + 长轮询
 async function searchHandle() {
   searchStatus.value.isDeepSearching = true
   console.log(searchForm.value)
-  await search(searchForm.value)
-  searchStatus.value.isDeepSearching = false
+  const result = await deep_search(searchForm.value)
+
+  if (result.code !== 200) {
+    ElMessage.error('深度搜索失败')
+    searchStatus.value.isDeepSearching = false
+    return
+  }
+
+  const task_id = result.data
+
+  const poll = async () => {
+    try {
+      const result = await search_redis(task_id)
+      if (result.code === 200) {
+        animeInfoList.value = result.data
+        searchStatus.value.isDeepSearching = false
+        return
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      await poll()
+    } catch (error) {
+      console.error(error)
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      await poll()
+    }
+  }
+
+  await poll()
 }
 
 // 多选框选中项改变时，更新选中项
@@ -444,6 +527,7 @@ function triggerDownload(url: string, fileName: string) {
   display: flex;
   // width: 100%;
   // height: 100px;
+  flex-direction: column;
   margin: 20px auto;
   justify-content: center;
   align-items: center;
@@ -475,16 +559,15 @@ function triggerDownload(url: string, fileName: string) {
 }
 
 .show-container {
-  width: 1350px;
+  width: 1450px;
   // height: 500px;
   margin: 20px auto;
   // background-color: greenyellow;
-
-  .search-loading {
-    display: flex;
-    justify-content: center;
-    // background-color: pink;
-    // margin: auto, 0px;
-  }
+}
+.search-loading {
+  display: flex;
+  justify-content: center;
+  // background-color: pink;
+  // margin: auto, 0px;
 }
 </style>
