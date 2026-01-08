@@ -1,4 +1,4 @@
-name: Vue-GitHub-Actions CI
+name: Vue-Dmhy-GitHub-Actions CD
 on:
   push:
     branches: [main]
@@ -54,3 +54,14 @@ jobs:
           rsync -avz -e "ssh -p 6000" \
             dist/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_DIST_PATH }}
+
+      # 重启 Docker Compose 中的 nginx
+      - name: Restart nginx via docker compose
+        run: |
+          ssh -p 6000 \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+              set -e
+              cd /mnt/a/workspace/docker/nginx/dmhy_nginx
+              docker compose restart
+              echo "✅ Nginx restarted successfully"
+          EOF
