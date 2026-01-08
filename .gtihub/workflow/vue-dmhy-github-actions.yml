@@ -1,7 +1,7 @@
 # name: Vue-GitHub-Actions CI
 # on:
 #   push:
-#     branches: [ main ]
+#     branches: [main]
 
 # jobs:
 #   build:
@@ -44,5 +44,13 @@
 #       # 部署到服务器
 #       - name: Deploy to server
 #         run: |
-#           rsync -avz -e "ssh -p 6000" dist/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_DIST_PATH }}
+#           if [ -z "${{ secrets.SERVER_DIST_PATH }}" ]; then
+#             echo "❌ SERVER_DIST_PATH is not set, skip deploy"
+#             exit 0
+#           fi
 
+#           echo "🚀 Deploying to ${{ secrets.SERVER_DIST_PATH }}"
+
+#           rsync -avz -e "ssh -p 6000" \
+#             dist/ \
+#             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_DIST_PATH }}
