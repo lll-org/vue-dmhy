@@ -1,0 +1,48 @@
+# name: Vue-GitHub-Actions CI
+# on:
+#   push:
+#     branches: [ main ]
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # 拉代码
+#       - name: Check out code
+#         uses: actions/checkout@v5
+
+#       # 安装 pnpm
+#       - name: Set up pnpm
+#         uses: pnpm/action-setup@v3
+#         with:
+#           version: 9.11.0
+
+#       # 安装node
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'pnpm' # 启用 pnpm 缓存
+
+#       # 安装依赖
+#       - name: Install dependencies
+#         run: pnpm install
+
+#       # 构建 Vue 项目
+#       - name: Build Vue Project
+#         run: pnpm run build
+
+#       # 配置SSH
+#       - name: Setup SSH
+#         run: |
+#           mkdir -p ~/.ssh
+#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+#           chmod 600 ~/.ssh/id_ed25519
+#           ssh-keyscan -p 6000 -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+#       # 部署到服务器
+#       - name: Deploy to server
+#         run: |
+#           rsync -avz -e "ssh -p 6000" dist/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_DIST_PATH }}
+
